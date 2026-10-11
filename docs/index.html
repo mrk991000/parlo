@@ -1,0 +1,446 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Parlo: chat with AI, compare two minds</title>
+  <meta name="description" content="Parlo is a desktop app for talking to Claude. Compare two models side by side, watch the cost live, and open it from anywhere with a hotkey.">
+  <link rel="icon" href="icon.png">
+  <style>
+    :root {
+      --bg: #15151b;
+      --card: #1d1d26;
+      --card-2: #23232e;
+      --text: #f0f0f5;
+      --muted: #9a9aaa;
+      --line: #2e2e3b;
+      --accent: #6ee7c8;
+      --accent-2: #9b87ff;
+      --ink: #0b1d18;
+    }
+    @media (prefers-color-scheme: light) {
+      :root {
+        --bg: #f6f7fb;
+        --card: #ffffff;
+        --card-2: #f0f1f7;
+        --text: #1a1a24;
+        --muted: #62627a;
+        --line: #e0e1ec;
+        --accent: #0f9d83;
+        --accent-2: #6d4fe0;
+        --ink: #ffffff;
+      }
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      min-height: 100vh;
+      background-image:
+        radial-gradient(60rem 30rem at 50% -10%, color-mix(in srgb, var(--accent-2) 22%, transparent), transparent),
+        radial-gradient(40rem 24rem at 90% 10%, color-mix(in srgb, var(--accent) 14%, transparent), transparent);
+      background-repeat: no-repeat;
+    }
+    a { color: var(--accent); }
+    .wrap { max-width: 1040px; margin: 0 auto; padding: 0 20px; }
+
+    /* ---------- hero ---------- */
+    .hero { text-align: center; padding: 72px 0 40px; }
+    .hero img {
+      width: 112px;
+      height: 112px;
+      border-radius: 26px;
+      box-shadow: 0 18px 60px color-mix(in srgb, var(--accent-2) 45%, transparent);
+    }
+    .hero h1 {
+      font-size: clamp(44px, 9vw, 76px);
+      letter-spacing: -2px;
+      line-height: 1.05;
+      margin-top: 22px;
+      background: linear-gradient(120deg, var(--accent), var(--accent-2));
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+    .hero .tag { font-size: clamp(17px, 3vw, 22px); margin-top: 12px; }
+    .hero .sub { color: var(--muted); margin-top: 8px; }
+    .pill {
+      display: inline-block;
+      margin-top: 18px;
+      padding: 5px 14px;
+      border: 1px solid var(--line);
+      border-radius: 99px;
+      color: var(--muted);
+      font-size: 13px;
+      background: var(--card);
+    }
+
+    .notice {
+      display: none;
+      margin: 0 auto 24px;
+      max-width: 640px;
+      padding: 12px 16px;
+      border-radius: 12px;
+      background: var(--card);
+      border: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 14px;
+      text-align: center;
+    }
+    .notice.show { display: block; }
+    .notice code { background: var(--card-2); padding: 1px 6px; border-radius: 6px; }
+
+    /* ---------- download cards ---------- */
+    .downloads {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 18px;
+      padding-bottom: 24px;
+    }
+    @media (max-width: 860px) { .downloads { grid-template-columns: 1fr; max-width: 460px; margin: 0 auto; } }
+
+    .card {
+      position: relative;
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      padding: 26px 22px 22px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      transition: transform 0.2s ease, border-color 0.2s ease;
+    }
+    .card:hover { transform: translateY(-3px); }
+    .card.rec {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 1px var(--accent), 0 14px 40px color-mix(in srgb, var(--accent) 16%, transparent);
+    }
+    .badge {
+      display: none;
+      position: absolute;
+      top: -12px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: linear-gradient(120deg, var(--accent), var(--accent-2));
+      color: var(--ink);
+      font-size: 12px;
+      font-weight: 700;
+      padding: 3px 12px;
+      border-radius: 99px;
+      white-space: nowrap;
+    }
+    .card.rec .badge { display: block; }
+
+    .os-icon {
+      width: 54px;
+      height: 54px;
+      border-radius: 16px;
+      display: grid;
+      place-items: center;
+      background: var(--card-2);
+      color: var(--accent);
+    }
+    .os-icon svg { width: 28px; height: 28px; }
+    .card h2 { font-size: 22px; margin-top: 4px; }
+    .card .desc { color: var(--muted); font-size: 14px; margin-bottom: 8px; flex: 1; }
+
+    .btn {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1px;
+      text-decoration: none;
+      padding: 12px 16px;
+      border-radius: 14px;
+      font-weight: 700;
+      color: var(--ink);
+      background: linear-gradient(120deg, var(--accent), var(--accent-2));
+      transition: filter 0.15s ease, transform 0.15s ease;
+    }
+    .btn:hover { filter: brightness(1.08); transform: translateY(-1px); }
+    .btn .sub { font-size: 12px; font-weight: 500; opacity: 0.8; }
+    .btn.alt {
+      color: var(--text);
+      background: var(--card-2);
+      border: 1px solid var(--line);
+    }
+    .btn.alt:hover { border-color: var(--accent); }
+
+    /* ---------- sections ---------- */
+    section { padding: 40px 0; }
+    section > .wrap > h2 { font-size: 30px; text-align: center; letter-spacing: -0.5px; }
+    section > .wrap > .lead { color: var(--muted); text-align: center; margin: 8px auto 28px; max-width: 560px; }
+
+    .features { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+    @media (max-width: 700px) { .features { grid-template-columns: 1fr; } }
+    .feature {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 20px;
+    }
+    .feature .emoji { font-size: 26px; }
+    .feature h3 { margin: 6px 0 4px; font-size: 18px; }
+    .feature p { color: var(--muted); font-size: 15px; }
+
+    details {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 14px 18px;
+      margin-bottom: 10px;
+    }
+    summary { cursor: pointer; font-weight: 600; }
+    details p, details pre { margin-top: 10px; color: var(--muted); font-size: 15px; }
+    details pre {
+      background: var(--card-2);
+      padding: 12px 14px;
+      border-radius: 10px;
+      overflow-x: auto;
+      font-size: 13px;
+      color: var(--text);
+    }
+
+    footer {
+      text-align: center;
+      color: var(--muted);
+      font-size: 14px;
+      padding: 36px 0 48px;
+      border-top: 1px solid var(--line);
+      margin-top: 24px;
+    }
+  </style>
+</head>
+<body>
+
+  <header class="hero wrap">
+    <img src="icon.png" alt="Parlo icon">
+    <h1>Parlo</h1>
+    <p class="tag">Ask anything. Compare two minds. Watch the meter.</p>
+    <p class="sub">A desktop app for talking to Claude, with a few tricks other chat apps don't have.</p>
+    <span class="pill" id="version-pill">Free · Windows, macOS and Linux</span>
+  </header>
+
+  <main>
+    <div class="wrap">
+      <div class="notice" id="notice"></div>
+
+      <div class="downloads" id="downloads">
+        <!-- Windows -->
+        <div class="card" id="card-win">
+          <span class="badge">Recommended for your computer</span>
+          <div class="os-icon">
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 5.5l7.5-1v7H3zM11.5 4.35L21 3v8.5h-9.5zM3 12.5h7.5v7L3 18.5zM11.5 12.5H21V21l-9.5-1.35z"/></svg>
+          </div>
+          <h2>Windows</h2>
+          <p class="desc">Windows 10 or 11. Installs like any other program and adds a Start menu entry.</p>
+          <a class="btn" id="dl-win" href="#">
+            Download for Windows
+            <span class="sub" id="meta-win">.exe installer</span>
+          </a>
+        </div>
+
+        <!-- macOS -->
+        <div class="card" id="card-mac">
+          <span class="badge">Recommended for your computer</span>
+          <div class="os-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6v12a3 3 0 1 0 3-3H6a3 3 0 1 0 3 3V6a3 3 0 1 0-3 3h12a3 3 0 1 0-3-3"/></svg>
+          </div>
+          <h2>macOS</h2>
+          <p class="desc">Pick the build that matches your Mac. Not sure? Apple menu → About This Mac shows the chip.</p>
+          <a class="btn" id="dl-mac-arm" href="#">
+            Apple Silicon
+            <span class="sub" id="meta-mac-arm">M1, M2, M3, M4 and newer</span>
+          </a>
+          <a class="btn alt" id="dl-mac-intel" href="#">
+            Intel
+            <span class="sub" id="meta-mac-intel">Older Macs</span>
+          </a>
+        </div>
+
+        <!-- Linux -->
+        <div class="card" id="card-linux">
+          <span class="badge">Recommended for your computer</span>
+          <div class="os-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="4 17 10 11 4 5"/><line x1="12" x2="20" y1="19" y2="19"/></svg>
+          </div>
+          <h2>Linux</h2>
+          <p class="desc">The AppImage runs on most distributions. Debian and Ubuntu users can use the .deb package.</p>
+          <a class="btn" id="dl-linux-appimage" href="#">
+            AppImage
+            <span class="sub" id="meta-linux-appimage">Works almost everywhere</span>
+          </a>
+          <a class="btn alt" id="dl-linux-deb" href="#">
+            .deb package
+            <span class="sub" id="meta-linux-deb">Debian, Ubuntu, Mint</span>
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <section>
+      <div class="wrap">
+        <h2>Why Parlo?</h2>
+        <p class="lead">Everything you'd expect from a chat app, plus the things you actually wished it had.</p>
+        <div class="features">
+          <div class="feature">
+            <div class="emoji">⚖️</div>
+            <h3>Compare two minds</h3>
+            <p>Send one prompt to two models at once, read both answers side by side, and keep the better one.</p>
+          </div>
+          <div class="feature">
+            <div class="emoji">💸</div>
+            <h3>Live cost meter</h3>
+            <p>See tokens and dollars for every message and every chat, so a bill never surprises you.</p>
+          </div>
+          <div class="feature">
+            <div class="emoji">⚡</div>
+            <h3>One hotkey away</h3>
+            <p>Press Ctrl+Shift+Space (Cmd on Mac) to open Parlo from anywhere with your clipboard ready to ask about.</p>
+          </div>
+          <div class="feature">
+            <div class="emoji">🔐</div>
+            <h3>Your key stays yours</h3>
+            <p>Bring your own Anthropic API key. It is stored encrypted on your computer and chats are saved locally.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="wrap">
+        <h2>First launch tips</h2>
+        <p class="lead">Parlo isn't code-signed yet, so your system may ask for a confirmation the first time.</p>
+
+        <details>
+          <summary>Windows: "Windows protected your PC"</summary>
+          <p>Click <b>More info</b>, then <b>Run anyway</b>. You only need to do this once.</p>
+        </details>
+        <details>
+          <summary>macOS: "can't be opened because the developer cannot be verified"</summary>
+          <p>Drag Parlo to Applications, then right-click it and choose <b>Open</b>, then <b>Open</b> again. You only need to do this once.</p>
+        </details>
+        <details>
+          <summary>Linux: running the AppImage or the .deb</summary>
+          <pre>chmod +x Parlo-*.AppImage
+./Parlo-*.AppImage</pre>
+          <pre>sudo apt install ./parlo_*_amd64.deb</pre>
+        </details>
+        <details>
+          <summary>What do I need to use it?</summary>
+          <p>An Anthropic API key from <a href="https://console.anthropic.com" target="_blank" rel="noreferrer">console.anthropic.com</a>. API usage is billed separately from a Claude subscription. Paste the key into Parlo on first launch.</p>
+        </details>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      Parlo · built with Electron and React ·
+      <a id="repo-link" href="#">Source and all releases</a>
+    </div>
+  </footer>
+
+  <script>
+    // Optional: set these to hardcode your repo. If left empty, the page works out
+    // the repo by itself when hosted on GitHub Pages (https://OWNER.github.io/REPO/).
+    // For a local preview you can also open index.html?repo=OWNER/REPO
+    const CONFIG = { owner: '', repo: '' }
+
+    const $ = (id) => document.getElementById(id)
+
+    function getRepo() {
+      const q = new URLSearchParams(location.search).get('repo')
+      if (q && q.includes('/')) {
+        const [owner, repo] = q.split('/')
+        if (owner && repo) return { owner, repo }
+      }
+      if (CONFIG.owner && CONFIG.repo) return CONFIG
+      if (location.hostname.endsWith('.github.io')) {
+        const owner = location.hostname.split('.')[0]
+        const repo = location.pathname.split('/').filter(Boolean)[0]
+        if (owner && repo) return { owner, repo }
+      }
+      return null
+    }
+
+    function detectOS() {
+      const ua = navigator.userAgent.toLowerCase()
+      if (/android|iphone|ipad|ipod/.test(ua)) return 'mobile'
+      const p = (navigator.userAgentData?.platform || navigator.platform || '').toLowerCase()
+      if (p.includes('win') || ua.includes('windows')) return 'win'
+      if (p.includes('mac') || ua.includes('mac os')) return 'mac'
+      if (p.includes('linux') || ua.includes('linux') || ua.includes('x11')) return 'linux'
+      return null
+    }
+
+    function showNotice(html) {
+      const n = $('notice')
+      n.innerHTML = html
+      n.classList.add('show')
+    }
+
+    function mb(bytes) {
+      return (bytes / 1024 / 1024).toFixed(0) + ' MB'
+    }
+
+    function setAsset(linkId, metaId, asset, label) {
+      if (!asset) return
+      $(linkId).href = asset.browser_download_url
+      $(metaId).textContent = `${label} · ${mb(asset.size)}`
+    }
+
+    async function init() {
+      // highlight the card that matches the visitor's computer
+      const os = detectOS()
+      if (os === 'mobile') {
+        showNotice('Parlo is a desktop app. Open this page on your computer to download it.')
+      } else if (os) {
+        $('card-' + os)?.classList.add('rec')
+      }
+
+      const repo = getRepo()
+      if (!repo) {
+        showNotice(
+          'Setup needed: this page could not tell which GitHub repo to use. ' +
+          'Host it on GitHub Pages, or set <code>CONFIG</code> in index.html, ' +
+          'or open it with <code>?repo=OWNER/REPO</code>.'
+        )
+        return
+      }
+
+      const releasesUrl = `https://github.com/${repo.owner}/${repo.repo}/releases/latest`
+      for (const id of ['dl-win', 'dl-mac-arm', 'dl-mac-intel', 'dl-linux-appimage', 'dl-linux-deb']) {
+        $(id).href = releasesUrl
+      }
+      $('repo-link').href = `https://github.com/${repo.owner}/${repo.repo}`
+
+      try {
+        const res = await fetch(`https://api.github.com/repos/${repo.owner}/${repo.repo}/releases/latest`)
+        if (!res.ok) throw new Error('release lookup failed: ' + res.status)
+        const rel = await res.json()
+        const assets = rel.assets || []
+        const find = (re, extra) => assets.find((a) => re.test(a.name) && (!extra || extra(a)))
+
+        setAsset('dl-win', 'meta-win', find(/\.exe$/i), '.exe installer')
+        setAsset('dl-mac-arm', 'meta-mac-arm', find(/\.dmg$/i, (a) => /arm64/i.test(a.name)), 'M1 and newer')
+        setAsset('dl-mac-intel', 'meta-mac-intel', find(/\.dmg$/i, (a) => !/arm64/i.test(a.name)), 'Older Macs')
+        setAsset('dl-linux-appimage', 'meta-linux-appimage', find(/\.AppImage$/i), 'AppImage')
+        setAsset('dl-linux-deb', 'meta-linux-deb', find(/\.deb$/i), 'Debian, Ubuntu')
+
+        const date = rel.published_at ? new Date(rel.published_at).toLocaleDateString() : ''
+        $('version-pill').textContent = `${rel.tag_name} · ${date} · Free`
+      } catch (err) {
+        // buttons already point at the releases page, so downloads still work
+        console.warn(err)
+      }
+    }
+
+    init()
+  </script>
+</body>
+</html>
