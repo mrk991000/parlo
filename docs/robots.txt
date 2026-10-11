@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://mrk991000.github.io/parlo/sitemap.xml
