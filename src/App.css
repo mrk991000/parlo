@@ -433,3 +433,121 @@
 
 .compare-head span { font-weight: 400; opacity: 0.7; margin-left: 6px; }
 .model-select { max-width: 240px; text-overflow: ellipsis; }
+
+/* ---------- first-run guide (v1.0.2) ---------- */
+.modal.wizard { width: 560px; position: relative; padding: 32px 28px 28px; }
+.wz-close { position: absolute; top: 12px; right: 12px; }
+.modal.wizard h2 { font-size: 26px; letter-spacing: -0.5px; }
+.wz-lead { color: var(--muted); font-size: 15px; }
+
+.wz-cards { display: flex; flex-direction: column; gap: 10px; margin-top: 4px; }
+.wz-card {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  text-align: left;
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: var(--input);
+  border: 1px solid transparent;
+  font-size: 14px;
+}
+.wz-card strong { font-size: 17px; }
+.wz-card span { color: var(--muted); }
+.wz-card:hover { border-color: var(--accent); }
+.wz-card .wz-badge {
+  align-self: flex-start;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--accent);
+}
+.wz-adv { align-self: center; margin-top: 4px; font-size: 13px; }
+.wz-back { align-self: flex-start; }
+
+.wz-steps { padding-left: 22px; display: flex; flex-direction: column; gap: 10px; }
+.wz-steps li { font-size: 15px; line-height: 1.5; }
+.wz-command {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 8px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: var(--bg);
+}
+.wz-command code { font-family: Consolas, 'Courier New', monospace; font-size: 14px; }
+.wz-command button {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.wz-command button:hover { color: var(--text); }
+
+.wz-open {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  text-decoration: none;
+  padding: 12px 16px;
+  border-radius: 12px;
+  font-weight: 700;
+  color: var(--accent-ink);
+  background: linear-gradient(120deg, var(--accent), var(--accent-2));
+}
+.wz-open:hover { filter: brightness(1.08); }
+
+.wz-status { text-align: center; color: var(--muted); font-size: 14px; }
+.wz-pulse {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: wzpulse 1.2s infinite;
+}
+@keyframes wzpulse {
+  0%, 100% { opacity: 0.25; transform: scale(0.85); }
+  50% { opacity: 1; transform: scale(1.15); }
+}
+.modal p.wz-error { color: #ff6b6b; font-size: 14px; text-align: center; }
+
+.wz-manual summary { cursor: pointer; color: var(--muted); font-size: 13px; text-align: center; }
+.wz-manual .prov-key { margin-top: 10px; }
+.wz-manual .prov-key input { background: var(--input); }
+.wz-manual .prov-key .primary { background: var(--accent); color: var(--accent-ink); }
+
+.wz-done { display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; padding: 8px 0; }
+.wz-check {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(120deg, var(--accent), var(--accent-2));
+  color: var(--accent-ink);
+}
+.wz-start {
+  margin-top: 6px;
+  padding: 12px 28px;
+  border-radius: 99px;
+  font-weight: 700;
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+/* ---------- starter ideas ---------- */
+.chips { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 22px; }
+.chip {
+  padding: 8px 14px;
+  border-radius: 99px;
+  font-size: 14px;
+  color: var(--muted);
+  background: var(--input);
+  border: 1px solid transparent;
+}
+.chip:hover { color: var(--text); border-color: var(--accent); }

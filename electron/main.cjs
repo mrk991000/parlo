@@ -206,6 +206,52 @@ ipcMain.handle('key:set', (_e, provider, key) => {
   return true
 })
 
+// Check a key before saving it, so the user hears about a typo right away.
+ipcMain.handle('key:test', async (_e, provider, key) => {
+  const cfg = PROVIDERS[provider]
+  if (!cfg || !cfg.needsKey) return { ok: false, error: 'Unknown provider.' }
+  const clean = String(key || '').trim()
+  if (!clean) return { ok: false, error: 'No key given.' }
+
+  const headers =
+    cfg.type === 'anthropic'
+      ? { 'x-api-key': clean, 'anthropic-version': '2023-06-01' }
+      : { authorization: `Bearer ${clean}`, ...(cfg.headers || {}) }
+
+  try {
+    const res = await fetch(`${cfg.baseUrl}/models`, {
+      signal: AbortSignal.timeout(15000),
+      headers,
+    })
+    if (res.ok) return { ok: true }
+    return { ok: false, error: await errorMessage(res) }
+  } catch (err) {
+    return { ok: false, error: networkMessage(provider, err) }
+  }
+})
+
+// During setup we watch the clipboard for a freshly copied key. We only ever hand the text
+// to the page when it looks like a key for the provider being set up, never anything else.
+const KEY_PATTERNS = {
+  gemini: /^AIza[\w-]{30,}$/,
+  groq: /^gsk_[\w-]{20,}$/,
+  openrouter: /^sk-or-[\w-]{20,}$/,
+  anthropic: /^sk-ant-[\w-]{20,}$/,
+  openai: /^sk-(?!ant-|or-)[\w-]{20,}$/,
+  mistral: /^[A-Za-z0-9]{32}$/,
+}
+
+ipcMain.handle('clipboard:keyFor', async (_e, provider) => {
+  const re = KEY_PATTERNS[provider]
+  if (!re) return ''
+  try {
+    const text = String((await clipboard.readText()) ?? '').trim()
+    return re.test(text) ? text : ''
+  } catch {
+    return ''
+  }
+})
+
 // ---------- Helpers ----------
 async function errorMessage(res) {
   let msg = ''

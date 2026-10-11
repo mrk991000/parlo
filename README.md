@@ -3,6 +3,7 @@
 A desktop chat app for talking to Claude: compare two models side by side, watch the cost live, summon it with a hotkey. Built with React + Vite + Electron.
 
 ## Features
+- First-run guide connects a free model in about two minutes; free models are the default
 - Works with Claude, GPT, Gemini, Groq, OpenRouter, Mistral and Ollama (free options included)
 - Streaming replies, markdown + code blocks with copy button
 - Compare mode: two models answer side by side, pick the winner

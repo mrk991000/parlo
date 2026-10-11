@@ -4,6 +4,7 @@ import {
   Columns2, Download, Clipboard, X, Check, RefreshCw,
 } from 'lucide-react'
 import Markdown from './Markdown'
+import Wizard from './Wizard'
 import './App.css'
 
 // ---------- providers ----------
@@ -63,11 +64,19 @@ const PRICES = {
 const provOf = (x) => x.provider || 'anthropic' // chats saved by v1.0.0 had no provider
 const providerShort = (id) => PROVIDERS.find((p) => p.id === id)?.short || id
 
+const WORDS = { gpt: 'GPT', oss: 'OSS', ai: 'AI' }
+
 function modelLabel(model) {
-  return (
-    CLAUDE_LABELS[model] ||
-    model.replace(/^models\//, '').split('/').pop().replace(/:free$/, ' (free)')
-  )
+  if (CLAUDE_LABELS[model]) return CLAUDE_LABELS[model]
+  const free = model.endsWith(':free')
+  const base = model.replace(/^models\//, '').split('/').pop().replace(/:free$/, '')
+  const pretty = base
+    .split(/[-_]/)
+    .map((w) =>
+      WORDS[w] || (/^\d+b$/i.test(w) ? w.toUpperCase() : w.charAt(0).toUpperCase() + w.slice(1))
+    )
+    .join(' ')
+  return free ? `${pretty} (free)` : pretty
 }
 
 // a selection is stored as "provider|model"
@@ -84,6 +93,47 @@ function loadSel(key, oldKey, fallback) {
   const old = oldKey && localStorage.getItem(oldKey)
   return old ? `anthropic|${old}` : fallback
 }
+
+// ---------- free models first ----------
+const FREE_ORDER = ['gemini', 'groq', 'mistral', 'openrouter', 'ollama']
+const PAID_ORDER = ['anthropic', 'openai']
+
+// model lists are sorted A to Z, so searching from the end finds the newest version first
+const PREFERRED = {
+  gemini: [
+    (m) => /flash/.test(m) && !/(lite|image|preview|exp|thinking|tts|live|vision|audio)/.test(m),
+    (m) => /flash/.test(m),
+  ],
+  groq: [/llama-3\.3-70b/, /gpt-oss-120b/, /70b/, /gpt-oss/, /llama/],
+  openrouter: [/llama.*70b.*:free/, /gpt-oss.*:free/, /gemini.*:free/, /deepseek.*:free/, /qwen.*:free/],
+  mistral: [/mistral-small/, /mistral-medium/, /mistral-large/],
+  anthropic: [/sonnet/],
+  openai: [/^gpt-.*mini/, /^gpt-/],
+}
+
+function defaultModel(provider, models) {
+  for (const rule of PREFERRED[provider] || []) {
+    const test = typeof rule === 'function' ? rule : (m) => rule.test(m)
+    const hit = [...models].reverse().find(test)
+    if (hit) return hit
+  }
+  return models[0]
+}
+
+function bestSelection(status, catalog, avoidProvider) {
+  for (const id of [...FREE_ORDER, ...PAID_ORDER]) {
+    if (id === avoidProvider) continue
+    if (status[id] && catalog[id]?.length) return `${id}|${defaultModel(id, catalog[id])}`
+  }
+  return ''
+}
+
+const SUGGESTIONS = [
+  'Explain something to me like I am 10',
+  'Help me write a polite email',
+  'Give me a simple dinner idea',
+  'Summarize a text for me',
+]
 
 // null = unknown price, 0 = free
 function costOf(provider, model, usage) {
@@ -222,6 +272,8 @@ function App() {
   const [catalogError, setCatalogError] = useState({})
   const [loaded, setLoaded] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
+  const [showWizard, setShowWizard] = useState(false)
+  const [wizardDismissed, setWizardDismissed] = useState(false)
   const [drafts, setDrafts] = useState({})
   const [sel1, setSel1] = useState(() => loadSel('parlo-sel1', 'parlo-model', ''))
   const [sel2, setSel2] = useState(() => loadSel('parlo-sel2', 'parlo-model2', ''))
@@ -278,16 +330,23 @@ function App() {
     loadAll()
   }, [])
 
-  // make sure the selected models exist; otherwise pick the first available
+  // make sure the selected models exist; otherwise default to a good FREE model
   useEffect(() => {
     if (!loaded || allOptions.length === 0) return
-    if (!allOptions.includes(sel1)) setSel1(allOptions[0])
-    if (!allOptions.includes(sel2)) setSel2(allOptions[1] || allOptions[0])
+    const next1 = allOptions.includes(sel1) ? sel1 : bestSelection(status, catalog)
+    if (next1 !== sel1) setSel1(next1)
+    if (!allOptions.includes(sel2)) {
+      setSel2(
+        bestSelection(status, catalog, parseSel(next1).provider) ||
+          allOptions.find((o) => o !== next1) ||
+          next1
+      )
+    }
   }, [loaded, optionsKey])
 
-  // nothing connected yet: open the providers screen
+  // nothing connected yet: show the friendly setup guide
   useEffect(() => {
-    if (loaded && allOptions.length === 0) setShowSettings(true)
+    if (loaded && allOptions.length === 0 && !wizardDismissed) setShowWizard(true)
   }, [loaded, optionsKey])
 
   // global hotkey: the main process tells us to focus the input and offers the clipboard
@@ -307,11 +366,13 @@ function App() {
   async function refreshProvider(id) {
     if (id === 'anthropic') {
       setCatalog((c) => ({ ...c, anthropic: CLAUDE_IDS }))
-      return
+      return { models: CLAUDE_IDS, error: '' }
     }
     const r = await window.api.listModels(id)
-    setCatalog((c) => ({ ...c, [id]: r.models || [] }))
+    const models = r.models || []
+    setCatalog((c) => ({ ...c, [id]: models }))
     setCatalogError((e) => ({ ...e, [id]: r.error || '' }))
+    return { models, error: r.error || '' }
   }
 
   async function loadAll() {
@@ -321,13 +382,30 @@ function App() {
     setLoaded(true)
   }
 
+  // test the key first, and only save it if it works
+  async function tryConnect(id, rawKey) {
+    const key = rawKey.trim()
+    const t = await window.api.testKey(id, key)
+    if (!t.ok) return { ok: false, error: t.error || 'That key did not work.' }
+    await window.api.setKey(id, key)
+    setStatus((s) => ({ ...s, [id]: true }))
+    const r = await refreshProvider(id)
+    if (!r.models.length) {
+      return { ok: false, error: 'The key works, but no chat models were found for it.' }
+    }
+    return { ok: true, models: r.models }
+  }
+
   async function saveProviderKey(id) {
     const key = (drafts[id] || '').trim()
     if (!key) return
-    await window.api.setKey(id, key)
-    setDrafts((d) => ({ ...d, [id]: '' }))
-    setStatus((s) => ({ ...s, [id]: true }))
-    await refreshProvider(id)
+    const r = await tryConnect(id, key)
+    if (r.ok) {
+      setDrafts((d) => ({ ...d, [id]: '' }))
+      setCatalogError((e) => ({ ...e, [id]: '' }))
+    } else {
+      setCatalogError((e) => ({ ...e, [id]: r.error }))
+    }
   }
 
   async function removeProviderKey(id) {
@@ -696,6 +774,20 @@ function App() {
             <div className="welcome">
               <h1>Parlo</h1>
               <p>Ask anything. Compare two minds. Watch the meter.</p>
+              <div className="chips">
+                {SUGGESTIONS.map((s) => (
+                  <button
+                    key={s}
+                    className="chip"
+                    onClick={() => {
+                      setInput(s)
+                      inputRef.current?.focus()
+                    }}
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
             </div>
           )}
 
@@ -795,6 +887,21 @@ function App() {
           </div>
         </div>
       </main>
+
+      {showWizard && (
+        <Wizard
+          onTryConnect={tryConnect}
+          onRefreshOllama={() => refreshProvider('ollama')}
+          onAdvanced={() => {
+            setShowWizard(false)
+            setShowSettings(true)
+          }}
+          onClose={() => {
+            setShowWizard(false)
+            setWizardDismissed(true)
+          }}
+        />
+      )}
 
       {showSettings && (
         <div className="modal-bg">

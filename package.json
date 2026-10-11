@@ -1,7 +1,7 @@
 {
   "name": "parlo",
   "private": true,
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Chat with Claude, GPT, Gemini and free models, compare them side by side, watch the cost.",
   "author": "MRK <mrk@sth.com>",
   "type": "module",
