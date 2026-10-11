@@ -1,8 +1,8 @@
 {
   "name": "parlo",
   "private": true,
-  "version": "1.0.0",
-  "description": "Chat with AI, compare models side by side, watch the cost.",
+  "version": "1.0.1",
+  "description": "Chat with Claude, GPT, Gemini and free models, compare them side by side, watch the cost.",
   "author": "MRK <mrk@sth.com>",
   "type": "module",
   "main": "electron/main.cjs",

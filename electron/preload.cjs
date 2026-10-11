@@ -1,8 +1,9 @@
 const { contextBridge, ipcRenderer } = require('electron')
 
 contextBridge.exposeInMainWorld('api', {
-  hasKey: () => ipcRenderer.invoke('key:has'),
-  setKey: (key) => ipcRenderer.invoke('key:set', key),
+  keysStatus: () => ipcRenderer.invoke('keys:status'),
+  setKey: (provider, key) => ipcRenderer.invoke('key:set', provider, key),
+  listModels: (provider) => ipcRenderer.invoke('models:list', provider),
   sendChat: (req) => ipcRenderer.invoke('chat:send', req),
   stopChat: (requestId) => ipcRenderer.invoke('chat:stop', requestId),
   onChunk: (cb) => {
